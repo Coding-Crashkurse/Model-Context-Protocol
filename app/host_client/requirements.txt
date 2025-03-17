@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+langchain_mcp_adapters
+langgraph
+langchain_openai

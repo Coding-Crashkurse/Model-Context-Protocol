@@ -8,7 +8,7 @@ from langchain_openai import ChatOpenAI
 async def main():
     model = ChatOpenAI(model="gpt-4o-mini")
     servers_config = {
-        "wyvernserver": {
+        "pizzaserver": {
             "transport": "sse",
             "url": "http://127.0.0.1:3000/sse",
         }

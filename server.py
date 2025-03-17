@@ -46,17 +46,8 @@ def resource_food(item: str) -> str:
 @mcp.prompt(name="friendly_greeting", description="Generates a short greeting message.")
 def prompt_friendly_greeting(name: str) -> list[dict]:
     return [
-        {
-            "role": "system",
-            "content": {"type": "text", "text": "You are a friendly helper."},
-        },
-        {
-            "role": "user",
-            "content": {
-                "type": "text",
-                "text": f"Welcome, {name}! How can I assist you today?",
-            },
-        },
+        {"role": "assistant", "content": "You are a friendly helper."},
+        {"role": "user", "content": f"Welcome, {name}! How can I assist you today?"},
     ]
 
 
