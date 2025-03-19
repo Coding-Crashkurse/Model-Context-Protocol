@@ -2,106 +2,84 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8">
     <title>Minimal MCP-Client (Materialize)</title>
-
-    <!-- Materialize CSS (via CDN) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" />
-    <!-- Material Icons (optional, falls du Icons brauchst) -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <style>
+        #responseArea {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            min-height: 3em;
+        }
+    </style>
 </head>
 
 <body class="grey lighten-4">
-
-    <!-- Navbar -->
-    <nav class="blue darken-3">
+    <nav class="green darken-3">
         <div class="nav-wrapper container">
             <span class="brand-logo">MCP Client</span>
         </div>
     </nav>
-
-    <!-- Haupt-Container -->
     <div class="container">
-        <h4 class="center-align" style="margin-top: 2rem;">
-            Minimal MCP Client UI (Materialize)
-        </h4>
-
-        <!-- 1. Neuen MCP-Server registrieren -->
+        <h4 class="center-align" style="margin-top: 2rem;">Minimal MCP Client UI (Materialize)</h4>
         <div class="card">
             <div class="card-content">
-                <span class="card-title">1. Neuen MCP-Server registrieren</span>
+                <span class="card-title">1. Register New MCP Server</span>
                 <div class="row" style="margin-top: 1rem;">
                     <div class="input-field col s12 m6">
-                        <input id="serverName" type="text" class="validate" />
-                        <label for="serverName">Server-Name</label>
+                        <input id="serverName" type="text" class="validate">
+                        <label for="serverName">Server Name</label>
                     </div>
                     <div class="input-field col s12 m6">
-                        <input id="serverUrl" type="text" class="validate" />
-                        <label for="serverUrl">SSE-URL (z.B. http://127.0.0.1:3000/sse)</label>
+                        <input id="serverUrl" type="text" class="validate">
+                        <label for="serverUrl">SSE-URL (e.g. http://127.0.0.1:3000/sse)</label>
                     </div>
                 </div>
-                <button id="btnAddServer" class="btn waves-effect waves-light blue">
-                    Hinzufügen
-                </button>
+                <button id="btnAddServer" class="btn waves-effect waves-light red lighten-1">Add Server</button>
             </div>
         </div>
-
-        <!-- 2. Registrierte Server -->
         <div class="card">
             <div class="card-content">
-                <span class="card-title">2. Registrierte Server</span>
+                <span class="card-title">2. Registered Servers</span>
                 <ul id="serverList" class="collection" style="margin-top: 1rem;"></ul>
             </div>
         </div>
-
-        <!-- 3. Frage stellen -->
         <div class="card">
             <div class="card-content">
-                <span class="card-title">3. Frage / Prompt</span>
+                <span class="card-title">3. Question / Prompt</span>
                 <div class="row" style="margin-top: 1rem;">
                     <div class="input-field col s12">
-                        <input id="question" type="text" class="validate" />
-                        <label for="question">Deine Frage / Prompt</label>
+                        <input id="question" type="text" class="validate">
+                        <label for="question">Your Question / Prompt</label>
                     </div>
                 </div>
-                <button id="btnAsk" class="btn waves-effect waves-light green">
-                    Senden
-                </button>
+                <button id="btnAsk" class="btn waves-effect waves-light red lighten-1">Send</button>
             </div>
         </div>
-
-        <!-- Bereich für Antwort -->
         <div class="card">
             <div class="card-content">
-                <span class="card-title">Antwort</span>
-                <pre id="responseArea" style="min-height: 3em;"></pre>
+                <span class="card-title">Answer</span>
+                <pre id="responseArea"></pre>
             </div>
         </div>
     </div>
-
-    <!-- Materialize JS (inkl. Abhängigkeiten) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
-
-    <!-- Eingebettetes JS -->
     <script>
         const serverNameEl = document.getElementById("serverName");
         const serverUrlEl = document.getElementById("serverUrl");
         const btnAddServer = document.getElementById("btnAddServer");
         const serverListEl = document.getElementById("serverList");
-
         const questionEl = document.getElementById("question");
         const btnAsk = document.getElementById("btnAsk");
         const responseEl = document.getElementById("responseArea");
 
-        // Lädt aktuelle Server beim Start
         async function fetchServers() {
             try {
                 const res = await fetch("/api/servers");
                 const data = await res.json();
                 updateServerList(data);
-            } catch (err) {
-                console.error(err);
-            }
+            } catch { }
         }
 
         function updateServerList(servers) {
@@ -118,7 +96,7 @@
             const name = serverNameEl.value.trim();
             const url = serverUrlEl.value.trim();
             if (!name || !url) {
-                alert("Bitte Name und URL angeben!");
+                alert("Please provide both server name and SSE URL!");
                 return;
             }
             try {
@@ -130,19 +108,16 @@
                 serverNameEl.value = "";
                 serverUrlEl.value = "";
                 await fetchServers();
-            } catch (err) {
-                console.error(err);
-            }
+            } catch { }
         });
 
         btnAsk.addEventListener("click", async () => {
             const q = questionEl.value.trim();
             if (!q) {
-                alert("Bitte eine Frage eingeben.");
+                alert("Please enter a question.");
                 return;
             }
-            responseEl.textContent = "Lade...";
-
+            responseEl.textContent = "Loading...";
             try {
                 const res = await fetch("/api/ask", {
                     method: "POST",
@@ -150,14 +125,19 @@
                     body: JSON.stringify({ question: q }),
                 });
                 const data = await res.json();
-                if (data.answer) {
-                    responseEl.textContent = data.answer;
+                if (data.answer && Array.isArray(data.answer)) {
+                    const allAiMessages = data.answer.filter(msg => msg.type === "ai");
+                    const lastAi = allAiMessages[allAiMessages.length - 1];
+                    if (lastAi) {
+                        responseEl.textContent = lastAi.content;
+                    } else {
+                        responseEl.textContent = "No AI answer found.";
+                    }
                 } else {
-                    responseEl.textContent = "Fehler oder keine Antwort erhalten.";
+                    responseEl.textContent = "Error or no answer received.";
                 }
             } catch (err) {
-                console.error(err);
-                responseEl.textContent = "Fehler: " + err;
+                responseEl.textContent = "Error: " + err;
             }
         });
 

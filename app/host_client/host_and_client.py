@@ -1,21 +1,16 @@
 import asyncio
-from fastapi import FastAPI
-from fastapi.responses import FileResponse, JSONResponse
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Dict
 
-# Client-Logik
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.prebuilt import create_react_agent
 from langchain_openai import ChatOpenAI
 
-app = FastAPI()
-
-# Statisches Verzeichnis anbinden
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# In-Memory Konfiguration der registrierten Server
+# Global dictionary for registered servers.
 servers_config: Dict[str, dict] = {}
 
 
@@ -26,6 +21,21 @@ class ServerRegistration(BaseModel):
 
 class AskPayload(BaseModel):
     question: str
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Create the persistent MultiServerMCPClient and store it in the app state.
+    persistent_client = MultiServerMCPClient(servers_config)
+    await persistent_client.__aenter__()
+    app.state.persistent_client = persistent_client
+    yield
+    # On shutdown, gracefully close the persistent client.
+    await app.state.persistent_client.__aexit__(None, None, None)
+
+
+app = FastAPI(lifespan=lifespan)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 @app.get("/")
@@ -40,30 +50,25 @@ def list_servers():
 
 @app.post("/api/servers")
 def register_server(reg: ServerRegistration):
-    # Beispielhaft immer 'sse' als Transport
     servers_config[reg.name] = {"transport": "sse", "url": reg.url}
     return {"status": "ok"}
 
 
 @app.post("/api/ask")
 async def ask_question(payload: AskPayload):
-    """Nutzt das LLM mit Tools (falls Server eingetragen) oder
-    ohne Tools (falls keine Server vorhanden)."""
-
-    # Minimales Chat-Modell
     model = ChatOpenAI(model="gpt-4o-mini")
-
-    # Wenn es eingetragene MCP-Server gibt, holen wir deren Tools,
-    # sonst erstellen wir den Agent ohne Tools.
     if servers_config:
-        async with MultiServerMCPClient(servers_config) as client:
-            tools = client.get_tools()
+        try:
+            persistent_client = app.state.persistent_client
+            tools = persistent_client.get_tools()
             agent = create_react_agent(model, tools)
             response = await agent.ainvoke({"messages": payload.question})
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Error during agent invocation: {str(e)}"
+            )
     else:
-        # Kein Server => keine Tools
         agent = create_react_agent(model, [])
         response = await agent.ainvoke({"messages": payload.question})
-
-    answer_text = response.get("messages", "Keine Antwort erhalten.")
+    answer_text = response.get("messages", "No answer received.")
     return {"answer": answer_text}
