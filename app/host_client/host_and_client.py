@@ -25,7 +25,7 @@ class AskPayload(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create the persistent MultiServerMCPClient and store it in the app state.
+    # Create the persistent client based on the initial servers_config.
     persistent_client = MultiServerMCPClient(servers_config)
     await persistent_client.__aenter__()
     app.state.persistent_client = persistent_client
@@ -49,8 +49,15 @@ def list_servers():
 
 
 @app.post("/api/servers")
-def register_server(reg: ServerRegistration):
+async def register_server(reg: ServerRegistration):
+    # Add the new server to the configuration.
     servers_config[reg.name] = {"transport": "sse", "url": reg.url}
+    # Reinitialize the persistent client to include the new server.
+    if hasattr(app.state, "persistent_client"):
+        await app.state.persistent_client.__aexit__(None, None, None)
+    new_client = MultiServerMCPClient(servers_config)
+    await new_client.__aenter__()
+    app.state.persistent_client = new_client
     return {"status": "ok"}
 
 
