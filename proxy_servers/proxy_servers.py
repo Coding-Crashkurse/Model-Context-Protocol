@@ -1,16 +1,8 @@
-# modern_proxy_server.py
 import asyncio
 from fastmcp import FastMCP, Client
-from fastmcp.client.transports import SSETransport, StreamableHttpTransport
+from fastmcp.client.transports import SSETransport
 
-# KORRIGIERTE URL für das SSE-Backend:
-# Normalerweise lauscht der SSE-Transport von FastMCP direkt auf /sse
-# oder auf einem Pfad, der in der Serverkonfiguration unter sse_path angegeben ist.
-# Wenn der legacy_backend_mcp.name = "LegacySSEBackend" ist und kein expliziter sse_path,
-# dann ist der wahrscheinlichste Pfad /sse oder /LegacySSEBackend/sse,
-# aber oft ist es einfach der Basis-URL + /sse.
-# Wir nehmen an, dass der Standardpfad für den SSE-Transport /sse ist.
-LEGACY_SSE_BACKEND_URL = "http://127.0.0.1:9001/sse" # !!! KORREKTUR: /sse statt /mcp/sse !!!
+LEGACY_SSE_BACKEND_URL = "http://127.0.0.1:9001/sse"
 
 async def create_modern_proxy_instance() -> FastMCP | None:
     print(f"Attempting to create modern proxy for LEGACY SSE backend at: {LEGACY_SSE_BACKEND_URL}")
@@ -20,10 +12,10 @@ async def create_modern_proxy_instance() -> FastMCP | None:
             transport=SSETransport(url=LEGACY_SSE_BACKEND_URL)
         )
     except NameError:
-        print("FEHLER: SSETransport nicht gefunden. Stelle sicher, dass die Transportklassen korrekt importiert sind.")
+        print("ERROR: SSETransport not found. Ensure that the transport classes are imported correctly.")
         return None
     except Exception as e:
-        print(f"FEHLER beim Erstellen des SSETransport für das Backend: {e}")
+        print(f"ERROR creating SSETransport for the backend: {e}")
         return None
 
     try:
@@ -37,15 +29,15 @@ async def create_modern_proxy_instance() -> FastMCP | None:
         
         tools_on_proxy = await modern_proxy_mcp.get_tools() 
         if not tools_on_proxy:
-             print(f"WARNUNG: Proxy '{modern_proxy_mcp.name}' wurde erstellt, aber keine Tools vom Legacy SSE Backend übernommen.")
+             print(f"WARNING: Proxy '{modern_proxy_mcp.name}' was created, but no tools were adopted from the Legacy SSE Backend.")
         else:
-            print(f"Proxy '{modern_proxy_mcp.name}' erstellt. Geproxyte Tools vom SSE Backend: {list(tools_on_proxy.keys())}")
+            print(f"Proxy '{modern_proxy_mcp.name}' created. Proxied tools from SSE Backend: {list(tools_on_proxy.keys())}")
         return modern_proxy_mcp
 
     except Exception as e:
-        print(f"FEHLER beim Erstellen des Proxys mit FastMCP.from_client() für SSE Backend: {e}")
+        print(f"ERROR creating the proxy with FastMCP.from_client() for SSE Backend: {e}")
         print(f"Details: {type(e)}, {e.args}")
-        print(f"Stelle sicher, dass der Legacy SSE Backend-Server unter {LEGACY_SSE_BACKEND_URL} läuft.")
+        print(f"Ensure that the Legacy SSE Backend server is running at {LEGACY_SSE_BACKEND_URL}.")
         return None
 
 def main():
@@ -63,7 +55,7 @@ def main():
             port=proxy_port
         )
     else:
-        print("Moderner Proxy-Server konnte nicht gestartet werden.")
+        print("Modern Proxy server could not be started.")
 
 if __name__ == "__main__":
     try:
@@ -72,8 +64,8 @@ if __name__ == "__main__":
         print("\nModern Proxy server (StreamableHTTP) shutting down.")
     except RuntimeError as e:
         if "Already running asyncio" in str(e):
-            print(f"Laufzeitfehler: {e}")
+            print(f"Runtime error: {e}")
         else:
-            print(f"Ein unerwarteter Laufzeitfehler ist aufgetreten: {e}")
+            print(f"An unexpected runtime error occurred: {e}")
     except Exception as e:
-        print(f"Ein unerwarteter Fehler ist aufgetreten: {e}")
+        print(f"An unexpected error occurred: {e}")
